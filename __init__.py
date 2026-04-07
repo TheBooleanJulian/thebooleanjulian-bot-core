@@ -1,5 +1,5 @@
 """
-julian-bot-core
+thebooleanjulian-bot-core
 ================
 Shared library for all TheBooleanJulian Telegram bots.
 

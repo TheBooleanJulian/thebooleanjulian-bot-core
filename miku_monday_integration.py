@@ -1,5 +1,5 @@
 """
-Example: Integrating julian-bot-core into the Miku Monday Bot
+Example: Integrating thebooleanjulian-bot-core into the Miku Monday Bot
 =============================================================
 This shows the minimal changes needed to wire up core features.
 Assumes you already have a working bot. Just replace the parts below.
@@ -7,10 +7,10 @@ Assumes you already have a working bot. Just replace the parts below.
 
 # ── requirements.txt addition ─────────────────────────────────────────────────
 #
-#   git+https://github.com/TheBooleanJulian/julian-bot-core.git@main
+#   git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main
 #
 # Or pin a version tag for stability:
-#   git+https://github.com/TheBooleanJulian/julian-bot-core.git@v1.0.0
+#   git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@v1.0.0
 
 # ── main.py changes ───────────────────────────────────────────────────────────
 
