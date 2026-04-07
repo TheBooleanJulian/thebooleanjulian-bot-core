@@ -1,4 +1,4 @@
-# julian-bot-core
+# thebooleanjulian-bot-core
 
 > Shared library for all [TheBooleanJulian](https://github.com/TheBooleanJulian) Telegram bots.
 > Branding · UI · Middleware · Status pages — one package, every bot.
@@ -10,13 +10,13 @@
 Add to any bot's `requirements.txt`:
 
 ```
-git+https://github.com/TheBooleanJulian/julian-bot-core.git@main
+git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main
 ```
 
 Pin a release tag for stability:
 
 ```
-git+https://github.com/TheBooleanJulian/julian-bot-core.git@v1.0.0
+git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@v1.0.0
 ```
 
 ---
