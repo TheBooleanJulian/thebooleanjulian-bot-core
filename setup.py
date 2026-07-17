@@ -7,7 +7,7 @@ setup(
     author           = "TheBooleanJulian",
     url              = "https://github.com/TheBooleanJulian/thebooleanjulian-bot-core",
     packages         = find_packages(),
-    package_data     = {"julian_bot_core": ["status_template.html"]},
+    package_data     = {"thebooleanjulian_bot_core": ["status_template.html"]},
     python_requires  = ">=3.11",
     install_requires = [
         "python-telegram-bot>=21.0",

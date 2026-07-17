@@ -9,7 +9,7 @@ Serves:
 
 Usage in your bot's main.py:
 
-    from julian_bot_core.health import StatusServer
+    from thebooleanjulian_bot_core.health import StatusServer
 
     server = StatusServer(
         bot_name        = "Miku Monday Bot",

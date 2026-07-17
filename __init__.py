@@ -5,11 +5,11 @@ Shared library for all TheBooleanJulian Telegram bots.
 
 Quick start:
 
-    from julian_bot_core.branding import fmt_success, fmt_error
-    from julian_bot_core.utils import now_sgt, fmt_uptime, mark_start
-    from julian_bot_core.middleware import setup_logging, rate_limit, admin_only
-    from julian_bot_core.health import StatusServer
-    from julian_bot_core.ui import confirm_keyboard, paginated_keyboard
+    from thebooleanjulian_bot_core.branding import fmt_success, fmt_error
+    from thebooleanjulian_bot_core.utils import now_sgt, fmt_uptime, mark_start
+    from thebooleanjulian_bot_core.middleware import setup_logging, rate_limit, admin_only
+    from thebooleanjulian_bot_core.health import StatusServer
+    from thebooleanjulian_bot_core.ui import confirm_keyboard, paginated_keyboard
 """
 
 from .branding  import *          # noqa: F401,F403

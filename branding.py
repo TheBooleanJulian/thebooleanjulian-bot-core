@@ -15,7 +15,7 @@ TEXT_MUTED = "#6b7280"
 
 # ── Identity ──────────────────────────────────────────────────────────────────
 BRAND_NAME   = "TheBooleanJulian"
-BRAND_HANDLE = "@JulianC97"
+BRAND_HANDLE = "@TheBooleanJulian"
 BRAND_GITHUB = "https://github.com/TheBooleanJulian"
 BRAND_FOOTER = f"Built by {BRAND_NAME} · {BRAND_GITHUB}"
 
