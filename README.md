@@ -50,9 +50,9 @@ git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@v1.0.0
 ## Quick Start
 
 ```python
-from julian_bot_core.middleware import setup_logging, rate_limit, global_error_handler
-from julian_bot_core.branding import fmt_success, fmt_error
-from julian_bot_core.utils import mark_start, fmt_uptime
+from thebooleanjulian_bot_core.middleware import setup_logging, rate_limit, global_error_handler
+from thebooleanjulian_bot_core.branding import fmt_success, fmt_error
+from thebooleanjulian_bot_core.utils import mark_start, fmt_uptime
 
 logger = setup_logging("my-bot")
 mark_start()
@@ -71,8 +71,8 @@ async def my_handler(update, context):
 ### Status Page
 
 ```python
-from julian_bot_core.health import StatusServer
-from julian_bot_core.utils import mark_start
+from thebooleanjulian_bot_core.health import StatusServer
+from thebooleanjulian_bot_core.utils import mark_start
 
 mark_start()
 
@@ -99,16 +99,17 @@ server.start(port=8080)
 
 ```
 thebooleanjulian-bot-core/
-|-- branding.py
-|-- health.py
-|-- middleware.py
+|-- thebooleanjulian_bot_core/
+|   |-- __init__.py
+|   |-- branding.py
+|   |-- health.py
+|   |-- middleware.py
+|   |-- ui.py
+|   |-- utils.py
+|   `-- status_template.html
 |-- miku_monday_integration.py
-|-- ui.py
-|-- utils.py
-|-- status_template.html
 |-- status-page-preview.html
-|-- setup.py
-`-- __init__.py
+`-- setup.py
 ```
 
 ## Versioning

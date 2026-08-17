@@ -14,10 +14,10 @@ Assumes you already have a working bot. Just replace the parts below.
 
 # ── main.py changes ───────────────────────────────────────────────────────────
 
-from julian_bot_core.middleware import setup_logging, global_error_handler, rate_limit
-from julian_bot_core.health import StatusServer
-from julian_bot_core.branding import fmt_status_message, fmt_success, BRAND_FOOTER
-from julian_bot_core.utils import mark_start, fmt_uptime, fmt_datetime, now_sgt
+from thebooleanjulian_bot_core.middleware import setup_logging, global_error_handler, rate_limit
+from thebooleanjulian_bot_core.health import StatusServer
+from thebooleanjulian_bot_core.branding import fmt_status_message, fmt_success, BRAND_FOOTER
+from thebooleanjulian_bot_core.utils import mark_start, fmt_uptime, fmt_datetime, now_sgt
 
 # 1. Setup logging (call before anything else)
 logger = setup_logging("miku-monday")
