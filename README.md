@@ -2,7 +2,7 @@
 
 # thebooleanjulian-bot-core
 
-**Shared branding, middleware, UI helpers, and status pages for all TheBooleanJulian Telegram bots.**
+**Opt-in shared building blocks for TheBooleanJulian's Telegram bots — extracted from what the bots actually do, not designed top-down.**
 
 ![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-00D4C8.svg)
@@ -11,135 +11,93 @@
 
 ---
 
-## What it does
+## What it is (and isn't)
 
-`thebooleanjulian-bot-core` is an internal shared library that provides common building blocks for every bot in the TheBooleanJulian fleet. Rather than duplicating branding constants, rate-limiting decorators, keyboard helpers, and status-page logic across repos, each bot installs this package and gets a consistent, maintainable foundation. It's not a standalone app — it's the shared core that bots pull in via `requirements.txt`.
+v1 of this package was written before any bot actually used it, and it showed: it mandated a Flask-based status server, but two real bots (openclaw, clawsune) had already dropped Flask on purpose to work around a Zeabur/uvicorn port-detection bug. It shipped a `pytz` dependency that nothing imported. Nine bots declared it in `requirements.txt`; zero imported anything from it.
 
-## Features
-
-- **Branding** — palette constants and message formatters (`fmt_success`, `fmt_error`, `fmt_status_message`)
-- **Middleware** — `rate_limit` decorator, `admin_only` decorator, `setup_logging`, and a global error handler
-- **UI helpers** — `confirm_keyboard`, `paginated_keyboard`, `url_button_keyboard`
-- **Utils** — SGT timezone helpers, uptime tracking (`mark_start`, `fmt_uptime`), text utilities
-- **Status server** — drop-in `StatusServer` (Flask) with a dark-mode auto-refreshing status page at `/`, `/healthz` for Zeabur health checks, and `/logs` for the last 100 log lines
+v2 is a rewrite based on a survey of the actual bot codebases in this fleet. It's a **toolbox, not a bootstrap sequence** — every module is independent and opt-in. Some patterns (logging setup, admin gating, a health-check contract) really are common across bots and are worth sharing. Others (which HTTP server library, whether to fail-fast on Telegram's 409 Conflict, rate limiting, timezone handling) genuinely vary bot-to-bot for real deploy/product reasons, so this package offers multiple backends or leaves them fully optional instead of picking one and forcing it everywhere.
 
 ## Modules
 
-| Module | What it gives you |
-|---|---|
-| `branding` | Palette constants, message formatters |
-| `utils` | SGT timezone helpers, uptime tracking, text utilities |
-| `middleware` | `rate_limit`, `admin_only`, `setup_logging`, error handler |
-| `ui` | `confirm_keyboard`, `paginated_keyboard`, `url_button_keyboard` |
-| `health` | `StatusServer` — drop-in Flask status page + `/healthz` for Zeabur |
+| Module | What it gives you | Actually common? |
+|---|---|---|
+| `logging_setup` | `setup_logging()` — stdout handler, silences `httpx`/`httpcore` (they log request URLs, which include the bot token), optional rotating file, optional in-memory buffer for a status page | Yes — every real bot does some form of this |
+| `admin` | `admin_only()` decorator, `AdminFilter`/`AllowedChatFilter` (BaseFilter), `is_admin()` | The *need* is universal; 3 different shapes exist in the wild, so this offers all of them rather than picking one |
+| `health` | `SimpleStatusServer` (stdlib `http.server`, zero deps — the Zeabur-safe default) and `FlaskStatusServer` (needs the `flask` extra) — same constructor, same rendered page | Only the *contract* (`/`, `/healthz`) is common; the transport genuinely varies by deploy target |
+| `error_handling` | `error_boundary()` (per-handler try/except + friendly reply), `make_error_handler()` (Application-level; `exit_on_conflict=True` opts into the openclaw/clawsune Zeabur fail-fast pattern) | Partially — friendly-error-card is common, fail-fast-on-Conflict is deploy-topology-specific |
+| `ratelimit` | `rate_limit(calls, period, key)` — per-command token bucket | No — only one bot in the fleet actually needs this; kept fully optional |
+| `branding` | Palette constants, `fmt_success`/`fmt_error`/`fmt_warn`/`fmt_status_message` | Cosmetic, zero side effects, safe to adopt piecemeal |
+| `utils` | SGT helpers, `mark_start()`/`fmt_uptime()`, `truncate()`, `plural()` | Only relevant if a bot schedules things or shows uptime — several bots have no timezone need at all |
+| `ui` | `InlineKeyboardMarkup` builders (`confirm_keyboard`, `paginated_keyboard`, ...) | Generic PTB helpers, opt-in |
 
 ## Install
 
-Add to any bot's `requirements.txt`:
-
 ```
+# Base (stdlib status server only)
 git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main
+
+# With Flask status server support
+git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main#egg=thebooleanjulian-bot-core[flask]
 ```
 
-Pin a release tag for stability:
+Pin a release tag for stability: `...@v2.0.0`
 
-```
-git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@v1.0.0
-```
+## Quick start
 
-## Quick Start
+Pick whichever pieces fit. Two full worked examples matching real bot shapes are in [`examples/`](examples/):
+
+- [`zeabur_stdlib_bot.py`](examples/zeabur_stdlib_bot.py) — single-owner bot on Zeabur, stdlib status server, fail-fast on Conflict (openclaw/clawsune's actual shape)
+- [`community_flask_bot.py`](examples/community_flask_bot.py) — owner + community command tiers, rate limiting, Flask status server (monitoring-miku's actual shape)
+
+Minimal:
 
 ```python
-from thebooleanjulian_bot_core.middleware import setup_logging, rate_limit, global_error_handler
-from thebooleanjulian_bot_core.branding import fmt_success, fmt_error
-from thebooleanjulian_bot_core.utils import mark_start, fmt_uptime
-
-logger = setup_logging("my-bot")
-mark_start()
-
-@rate_limit(calls=5, period=60)
-async def my_handler(update, context):
-    await update.message.reply_text(
-        fmt_success("Done!", "Task completed."),
-        parse_mode="HTML"
-    )
-
-# In your Application setup:
-# application.add_error_handler(global_error_handler)
-```
-
-### Status Page
-
-```python
-from thebooleanjulian_bot_core.health import StatusServer
+from thebooleanjulian_bot_core.logging_setup import setup_logging
+from thebooleanjulian_bot_core.admin import admin_only
+from thebooleanjulian_bot_core.health import StatusServer  # stdlib backend
 from thebooleanjulian_bot_core.utils import mark_start
 
+setup_logging()
 mark_start()
 
 server = StatusServer(
-    bot_name             = "My Bot",
-    bot_username         = "@mybothandle",
-    bot_description      = "Does cool things.",
-    bot_version          = "1.0.0",
-    commands             = [("/start", "Begin"), ("/help", "Help")],
-    get_subscriber_count = lambda: len(my_subscribers),  # optional
-    get_extra_metrics    = lambda: {"Next run": "00:00 SGT"},  # optional
-    icon_emoji           = "🤖",
-    accent_color         = "#00d4c8",
+    bot_name="My Bot",
+    bot_username="@mybothandle",
+    bot_description="Does one thing well.",
+    commands=[("/start", "Wake up")],
+    get_metrics=lambda: {"Subscribers": len(subscribers)},
 )
-server.start(port=8080)
+server.start()  # binds $PORT or 8080
+
+@admin_only(OWNER_ID)  # silent for non-owners, matching every real bot's behaviour
+async def status_handler(update, context): ...
 ```
 
-**Endpoints:**
-- `GET /` — Dark-mode status page, auto-refreshes every 30s
-- `GET /healthz` — `{"status": "ok"}` for Zeabur health checks
-- `GET /logs` — Last 100 log lines as JSON
+**Endpoints (both backends):** `GET /` status page, `GET /healthz` → `{"status": "ok"}`, `GET /logs` → last 100 buffered lines (only populated if `setup_logging(buffer=True)`).
 
-## Project Structure
+## Bots using this library
 
-```
-thebooleanjulian-bot-core/
-|-- thebooleanjulian_bot_core/
-|   |-- __init__.py
-|   |-- branding.py
-|   |-- health.py
-|   |-- middleware.py
-|   |-- ui.py
-|   |-- utils.py
-|   `-- status_template.html
-|-- miku_monday_integration.py
-|-- status-page-preview.html
-`-- setup.py
-```
+None yet, as of this rewrite — v1 was declared as a dependency in 9 repos' `requirements.txt` but never actually imported by any of them. `clawsune` is the intended first real integration once this rewrite is validated; **update this table when that lands**, and don't add a bot here speculatively.
+
+## Fleet survey (why the API looks like this)
+
+Real Python Telegram bots found in this workspace, as of this rewrite: `openclaw`, `clawsune`, `miku-ocr`, `miku-singlish-word-of-the-day`, `mikuquest`, `monitoring-miku`, `ig-uwu-bot`, `mikew-gcal-v1`, `mikew-gcal-v3`, `accurova-loyalty/telegram_bot`. (Several other repos declare a Telegram-bot-shaped dependency but are actually Node.js, static sites, or non-bot tools — see git history / handover notes for the full exclusion list.)
+
+`mikew-gcal-v3/health.py` had already independently built a generic Flask `StatusServer` explicitly to replace this package — its constructor shape is what `FlaskStatusServer` is modeled on.
 
 ## Versioning
 
-Bump `version` in `setup.py` and tag a release when making breaking changes:
+Bump `version` in `setup.py` and tag a release on breaking changes:
 
 ```bash
-git tag v1.1.0
-git push origin v1.1.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
-
-## Bots Using This Library
-
-| Bot | Repo | Description |
-|---|---|---|
-| Miku Monday Bot | `itsmikumondaybot` | Weekly Miku GIFs to Telegram channels |
-| MiguQuest Bot | `miguquestbot` | Gamified task manager, Miku-themed |
-| NAC Busker Bot | `MikewNACBot` | Weekly busking schedule scraper |
-| NASA APOD Bot | *(private)* | Daily astronomy picture cards |
-
-## Status / Roadmap
-
-- [x] Core modules: branding, middleware, UI, utils, health
-- [x] Drop-in `StatusServer` with Zeabur `/healthz` support
-- [x] Miku Monday integration helper
-- [ ] Publish to PyPI for cleaner installs
 
 ## Changelog
 
-- **Early April 2026** — Renamed package from `julian-bot-core` to `thebooleanjulian-bot-core` across all files and references; initial public release with branding, middleware, UI, utils, and health modules
+- **v2.0.0** — Rewrite from a bottom-up survey of the actual bot fleet. Replaced the Flask-only `StatusServer` with two interchangeable backends (stdlib default + optional Flask). Split `middleware.py` into `logging_setup`, `admin`, `ratelimit`, `error_handling` — each independent and opt-in, mirroring the real shapes found (inline checks, filter classes, per-command rate limits, conflict-fail-fast vs. friendly-error-card). Dropped the unused `pytz` dependency. Removed the fabricated "Bots Using This Library" table (none of those bots existed or imported this package) and the stale Miku Monday integration example (that bot turned out to be Node.js).
+- **v1.0.0** — Initial release: branding, middleware (rate_limit, admin_only, setup_logging, global error handler), UI helpers, utils, Flask-based health server. Written speculatively before any bot integrated it.
 
 ## License
 

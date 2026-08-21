@@ -1,20 +1,27 @@
 """
 thebooleanjulian-bot-core
 ================
-Shared library for all TheBooleanJulian Telegram bots.
+Shared, opt-in building blocks for TheBooleanJulian's Telegram bots.
 
-Quick start:
+Nothing here is a required bootstrap sequence — pull in only the pieces
+a given bot actually needs. Modules:
 
-    from thebooleanjulian_bot_core.branding import fmt_success, fmt_error
-    from thebooleanjulian_bot_core.utils import now_sgt, fmt_uptime, mark_start
-    from thebooleanjulian_bot_core.middleware import setup_logging, rate_limit, admin_only
-    from thebooleanjulian_bot_core.health import StatusServer
-    from thebooleanjulian_bot_core.ui import confirm_keyboard, paginated_keyboard
+    logging_setup   setup_logging() — stdout + optional rotating file,
+                     silences httpx/httpcore (they log the bot token)
+    admin           admin_only() decorator, AdminFilter/AllowedChatFilter,
+                     is_admin() — three shapes of the same access check
+    ratelimit       rate_limit() — opt-in per-command token bucket
+    error_handling  error_boundary() (per-handler), make_error_handler()
+                     (Application-level; conflict-fail-fast is opt-in)
+    health          SimpleStatusServer (stdlib, Zeabur-safe) or
+                     FlaskStatusServer (needs the `flask` extra)
+    branding        palette constants, fmt_success/fmt_error/... formatters
+    utils           SGT helpers, mark_start()/fmt_uptime(), text helpers
+    ui              InlineKeyboardMarkup builders
+
+See README.md for which of these are actually common across the fleet
+vs. genuinely bot-specific — don't force a pattern just because it's here.
 """
 
-from .branding  import *          # noqa: F401,F403
-from .utils     import mark_start # noqa: F401
-from .middleware import setup_logging, global_error_handler  # noqa: F401
-
-__version__ = "1.0.0"
-__author__  = "TheBooleanJulian"
+__version__ = "2.0.0"
+__author__ = "TheBooleanJulian"
