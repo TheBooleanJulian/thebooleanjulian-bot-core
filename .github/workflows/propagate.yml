@@ -1,0 +1,39 @@
+name: Propagate to fleet
+
+# Fires on every push to main. Redeploys bot-core-canary first, polls its
+# /healthz, and only then fans out redeploys to the rest of the fleet
+# listed in deploy/fleet.json. A canary that doesn't come up healthy
+# blocks the fan-out entirely — nothing else gets touched.
+#
+# Setup required (one-time, per service, in this repo's GitHub Actions
+# secrets — Settings > Secrets and variables > Actions):
+#   1. In Zeabur, open the service's dashboard > Settings > Webhooks
+#      (or equivalent) and create a deploy-trigger webhook URL.
+#   2. Add it here as a secret named exactly what deploy/fleet.json's
+#      "webhook_secret" field says for that service
+#      (e.g. ZEABUR_WEBHOOK_BOT_CORE_CANARY, ZEABUR_WEBHOOK_CLAWSUNE).
+#   3. To add a new service to the fleet: add an entry to
+#      deploy/fleet.json and a matching secret. No workflow YAML edits
+#      needed — propagate.py reads secrets dynamically by name.
+#
+# Until secrets are configured, this workflow will run and fail loudly
+# at the "missing secret" check rather than silently doing nothing.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Redeploy canary, then fan out to fleet
+        env:
+          SECRETS_CONTEXT: ${{ toJSON(secrets) }}
+        run: python deploy/propagate.py

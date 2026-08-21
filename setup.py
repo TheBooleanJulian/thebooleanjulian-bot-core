@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name             = "thebooleanjulian-bot-core",
-    version          = "2.0.0",
+    version          = "2.1.0",
     description      = "Shared, opt-in building blocks for TheBooleanJulian Telegram bots",
     author           = "TheBooleanJulian",
     url              = "https://github.com/TheBooleanJulian/thebooleanjulian-bot-core",

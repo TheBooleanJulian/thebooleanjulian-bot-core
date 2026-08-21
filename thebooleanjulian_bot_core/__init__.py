@@ -23,5 +23,5 @@ See README.md for which of these are actually common across the fleet
 vs. genuinely bot-specific — don't force a pattern just because it's here.
 """
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __author__ = "TheBooleanJulian"

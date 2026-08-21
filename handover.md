@@ -40,6 +40,36 @@ the exact Zeabur/uvicorn bug clawsune's own changelog says it fixed.
   Miku Monday integration example (that bot turned out to be Node.js)
 - Added two worked examples in `examples/` matching real bot shapes
 
+## Fleet propagation (added after v2.0.0)
+
+The goal shifted from "opt-in toolbox, pin for stability" to "unified
+core — one push, everyone updates." Implemented as:
+
+- `bot-core-canary` (new repo, `TheBooleanJulian/bot-core-canary`) —
+  throwaway service, no real users, imports bot-core and self-checks.
+- `.github/workflows/propagate.yml` — on push to `main`, redeploys the
+  canary via its Zeabur webhook, polls `/healthz`, and only fans out to
+  `deploy/fleet.json`'s services if the canary comes up healthy. Logic
+  lives in `deploy/propagate.py`, tested against a local mock server
+  (healthy-canary fan-out, unhealthy-canary block, missing-secret
+  fail-safe — all three verified before commit).
+- `clawsune`'s `requirements.txt` reverted from pinned `@v2.0.0` back
+  to `@main` — pinning defeated the propagation goal.
+
+**Manual setup still needed (I can't do this — it's Zeabur dashboard
+access + GitHub repo secrets, not something reachable from here):**
+1. In Zeabur, create a deploy-trigger webhook for `bot-core-canary`
+   and for `clawsune`.
+2. Add them as GitHub Actions secrets on `thebooleanjulian-bot-core`:
+   `ZEABUR_WEBHOOK_BOT_CORE_CANARY`, `ZEABUR_WEBHOOK_CLAWSUNE` (exact
+   names are in `deploy/fleet.json`).
+3. Deploy `bot-core-canary` to Zeabur itself (repo is pushed, nothing
+   deployed yet) and confirm its `health_url` in `fleet.json` matches
+   the real Zeabur URL once assigned.
+4. Until secrets exist, `propagate.yml` will run on every push and
+   fail loudly at the "missing secret" check — that's intentional
+   (fail-safe, not silent no-op), but expect red CI until step 2 is done.
+
 ## Open questions / not done
 
 - **8 other bots** still declare bot-core in `requirements.txt` but

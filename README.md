@@ -40,7 +40,24 @@ git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main
 git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main#egg=thebooleanjulian-bot-core[flask]
 ```
 
-Pin a release tag for stability: `...@v2.0.0`
+**Track `@main`, don't pin a tag.** The fleet's whole point is one core update reaching every bot — see "Fleet propagation" below. Pin to a tag only for a deliberate, temporary freeze (e.g. investigating a regression), and unpin once you're done.
+
+## Fleet propagation
+
+Every push to this repo's `main` branch triggers `.github/workflows/propagate.yml`:
+
+1. Redeploys **[bot-core-canary](https://github.com/TheBooleanJulian/bot-core-canary)** — a throwaway service with no real users whose only job is to import bot-core and stay healthy.
+2. Polls its `/healthz`. If it doesn't come up healthy, the pipeline **stops here** — nothing else is touched, and the workflow fails loudly in GitHub Actions.
+3. Only if the canary is healthy does it fan out redeploys to every service listed in `deploy/fleet.json`.
+
+This is why bots should track `@main` instead of pinning: they're not expected to manually bump a version. bot-core pushes, the canary catches anything broken before it reaches a real bot, and everything else picks it up within minutes of that push.
+
+**Adding a new bot/webapp to the fleet:**
+1. Add an entry to `deploy/fleet.json` (`name`, `repo`, `webhook_secret`, `health_url`).
+2. In Zeabur, create a deploy-trigger webhook for that service.
+3. Add the webhook URL as a GitHub Actions secret in **this** repo, named exactly what you put in `webhook_secret`.
+
+No workflow YAML edits needed — `deploy/propagate.py` reads secrets dynamically by name from the fleet registry.
 
 ## Quick start
 
@@ -77,7 +94,12 @@ async def status_handler(update, context): ...
 
 ## Bots using this library
 
-None yet, as of this rewrite — v1 was declared as a dependency in 9 repos' `requirements.txt` but never actually imported by any of them. `clawsune` is the intended first real integration once this rewrite is validated; **update this table when that lands**, and don't add a bot here speculatively.
+| Service | Tracks | Notes |
+|---|---|---|
+| `bot-core-canary` | `@main` | Canary — gates fleet propagation, no real users |
+| `clawsune` | `@main` | First real integration: `setup_logging`, `admin_only`, `error_handling` |
+
+v1 was declared as a dependency in 9 repos' `requirements.txt` but never actually imported by any of them — don't add a bot to this table speculatively; add it when it actually imports something and is registered in `deploy/fleet.json`.
 
 ## Fleet survey (why the API looks like this)
 
@@ -96,6 +118,7 @@ git push origin v2.0.0
 
 ## Changelog
 
+- **v2.1.0** — Added fleet-wide auto-propagation: `.github/workflows/propagate.yml` redeploys `bot-core-canary` on every push to `main`, gates on its `/healthz`, and only then fans out redeploys to `deploy/fleet.json`. Reverted the "pin a tag" install guidance — bots should track `@main` now that a canary catches breakage before it reaches them.
 - **v2.0.0** — Rewrite from a bottom-up survey of the actual bot fleet. Replaced the Flask-only `StatusServer` with two interchangeable backends (stdlib default + optional Flask). Split `middleware.py` into `logging_setup`, `admin`, `ratelimit`, `error_handling` — each independent and opt-in, mirroring the real shapes found (inline checks, filter classes, per-command rate limits, conflict-fail-fast vs. friendly-error-card). Dropped the unused `pytz` dependency. Removed the fabricated "Bots Using This Library" table (none of those bots existed or imported this package) and the stale Miku Monday integration example (that bot turned out to be Node.js).
 - **v1.0.0** — Initial release: branding, middleware (rate_limit, admin_only, setup_logging, global error handler), UI helpers, utils, Flask-based health server. Written speculatively before any bot integrated it.
 
