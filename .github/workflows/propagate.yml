@@ -22,6 +22,7 @@ name: Propagate to fleet
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}
 
 jobs:
   propagate:
