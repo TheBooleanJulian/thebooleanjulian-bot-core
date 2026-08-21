@@ -5,24 +5,22 @@ name: Propagate to fleet
 # listed in deploy/fleet.json. A canary that doesn't come up healthy
 # blocks the fan-out entirely — nothing else gets touched.
 #
-# Setup required (one-time, per service, in this repo's GitHub Actions
-# secrets — Settings > Secrets and variables > Actions):
-#   1. In Zeabur, open the service's dashboard > Settings > Webhooks
-#      (or equivalent) and create a deploy-trigger webhook URL.
-#   2. Add it here as a secret named exactly what deploy/fleet.json's
-#      "webhook_secret" field says for that service
-#      (e.g. ZEABUR_WEBHOOK_BOT_CORE_CANARY, ZEABUR_WEBHOOK_CLAWSUNE).
-#   3. To add a new service to the fleet: add an entry to
-#      deploy/fleet.json, a matching secret, AND a line under `env:`
-#      below. Deliberately NOT using `${{ toJSON(secrets) }}` here even
-#      though it would avoid the YAML edit — dumping the whole secrets
-#      store into one env var (a) trips GitHub's automated
-#      "may be malicious" scan on every workflow-file change, requiring
-#      manual re-approval, and (b) hands the script every secret in the
-#      repo instead of just the two it needs. Explicit > convenient.
+# Zeabur has no deploy-trigger webhook feature (confirmed against their
+# Apollo Explorer schema — requested, not shipped). Redeploys go through
+# Zeabur's GraphQL API instead, authenticated by one account-wide API
+# token. One-time setup:
+#   1. Create an API key at https://zeabur.com/account/api-keys
+#   2. Add it here as a secret named ZEABUR_API_TOKEN
+#      (Settings > Secrets and variables > Actions)
 #
-# Until secrets are configured, this workflow will run and fail loudly
-# at the "missing secret" check rather than silently doing nothing.
+# To add a new service to the fleet: add an entry to deploy/fleet.json
+# with its serviceID + environmentID (get these from the Zeabur GraphQL
+# API/Apollo Explorer — they're identifiers, not secrets, safe to
+# commit). No workflow YAML edits needed — one token authenticates every
+# service's redeploy call.
+#
+# Until ZEABUR_API_TOKEN is configured, this workflow will run and fail
+# loudly at the "missing secret" check rather than silently doing nothing.
 
 on:
   push:
@@ -41,6 +39,5 @@ jobs:
 
       - name: Redeploy canary, then fan out to fleet
         env:
-          ZEABUR_WEBHOOK_BOT_CORE_CANARY: ${{ secrets.ZEABUR_WEBHOOK_BOT_CORE_CANARY }}
-          ZEABUR_WEBHOOK_CLAWSUNE: ${{ secrets.ZEABUR_WEBHOOK_CLAWSUNE }}
+          ZEABUR_API_TOKEN: ${{ secrets.ZEABUR_API_TOKEN }}
         run: python deploy/propagate.py

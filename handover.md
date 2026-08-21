@@ -56,19 +56,42 @@ core — one push, everyone updates." Implemented as:
 - `clawsune`'s `requirements.txt` reverted from pinned `@v2.0.0` back
   to `@main` — pinning defeated the propagation goal.
 
-**Manual setup still needed (I can't do this — it's Zeabur dashboard
-access + GitHub repo secrets, not something reachable from here):**
-1. In Zeabur, create a deploy-trigger webhook for `bot-core-canary`
-   and for `clawsune`.
-2. Add them as GitHub Actions secrets on `thebooleanjulian-bot-core`:
-   `ZEABUR_WEBHOOK_BOT_CORE_CANARY`, `ZEABUR_WEBHOOK_CLAWSUNE` (exact
-   names are in `deploy/fleet.json`).
-3. Deploy `bot-core-canary` to Zeabur itself (repo is pushed, nothing
-   deployed yet) and confirm its `health_url` in `fleet.json` matches
-   the real Zeabur URL once assigned.
-4. Until secrets exist, `propagate.yml` will run on every push and
-   fail loudly at the "missing secret" check — that's intentional
-   (fail-safe, not silent no-op), but expect red CI until step 2 is done.
+**Redesigned after v2.1.0**: Zeabur has no deploy-trigger webhook
+feature — confirmed against their Apollo Explorer GraphQL schema
+directly (it's on their roadmap, not shipped). Redeploys now go
+through Zeabur's `redeployService(serviceID, environmentID)` GraphQL
+mutation at `api.zeabur.com/graphql`, authenticated by one account-wide
+`ZEABUR_API_TOKEN`. This is simpler than the webhook design: one secret
+covers the whole fleet, and adding a new service needs only a
+`fleet.json` entry (`service_id`/`environment_id` — identifiers, not
+secrets, safe to commit) — no new GitHub secret, no workflow YAML edit.
+
+Also hit and fixed along the way: `${{ toJSON(secrets) }}` (the original
+approach for reading webhook secrets dynamically) tripped GitHub's
+"this workflow may be malicious" scan and blocked every run — dumping
+the whole secrets store into one env var looks like exfiltration to
+their heuristics, and is bad practice regardless. Fixed by switching to
+explicit `secrets.<NAME>` env mappings before the webhook approach was
+abandoned entirely; the GraphQL redesign inherits that same clean
+pattern (a single explicit `ZEABUR_API_TOKEN` mapping).
+
+Also discovered: this GitHub account had a **$0 Actions spending
+budget with "Stop usage: Yes"**, which silently blocked every workflow
+run before any job could start (`conclusion: action_required`, zero
+jobs, no clear error in the API). Not something visible from the CLI —
+had to be found and fixed in the GitHub billing UI. Budget is now $5.
+
+**Manual setup still needed (I can't do this — needs the Zeabur
+dashboard/Apollo Explorer, not reachable from here):**
+1. Get `serviceID` + `environmentID` for `bot-core-canary` and
+   `clawsune` (via Zeabur's GraphQL API/Apollo Explorer) and fill in
+   the `TODO_FILL_IN` placeholders in `deploy/fleet.json`.
+2. Create an API key at zeabur.com/account/api-keys and add it as a
+   GitHub Actions secret on `thebooleanjulian-bot-core` named
+   `ZEABUR_API_TOKEN`.
+3. Until that secret + the real IDs exist, `propagate.yml` will run on
+   every push and fail loudly at the "missing secret"/mutation-error
+   check — that's intentional fail-safe behavior, not a bug.
 
 ## Open questions / not done
 

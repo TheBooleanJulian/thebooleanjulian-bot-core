@@ -2,29 +2,60 @@
 Fan out a redeploy to every service in fleet.json — canary first, gating
 the rest. Run by .github/workflows/propagate.yml on every push to main.
 
-Looks up each service's Zeabur deploy-webhook URL from an env var named
-after the `webhook_secret` field in fleet.json. Those env vars are set
-explicitly in propagate.yml from `secrets.<NAME>` — deliberately not
-`${{ toJSON(secrets) }}`, which dumps the entire secrets store into one
-var and trips GitHub's automated "may be malicious" workflow scan on
-every edit to this file. Adding a new fleet member means a fleet.json
-entry, a repo secret, AND a matching env line in propagate.yml.
+Zeabur has no deploy-trigger webhook feature (checked directly against
+their Apollo Explorer schema — it's a requested feature, not shipped).
+Redeploys go through their GraphQL API instead: a single account-wide
+API token (ZEABUR_API_TOKEN) authenticates a `redeployService` mutation
+per service, identified by serviceID + environmentID (not secrets —
+just identifiers, safe to commit in fleet.json).
 """
 
+import json
 import os
 import sys
 import time
-import urllib.request
 import urllib.error
-import json
+import urllib.request
 
 FLEET_FILE = os.path.join(os.path.dirname(__file__), "fleet.json")
+ZEABUR_GRAPHQL_URL = "https://api.zeabur.com/graphql"
+
+REDEPLOY_MUTATION = """
+mutation Redeploy($serviceID: ObjectID!, $environmentID: ObjectID!) {
+  redeployService(serviceID: $serviceID, environmentID: $environmentID)
+}
+"""
 
 
-def trigger_webhook(url: str) -> None:
-    req = urllib.request.Request(url, method="POST", data=b"")
+def api_token() -> str:
+    token = os.environ.get("ZEABUR_API_TOKEN")
+    if not token:
+        print("MISSING secret ZEABUR_API_TOKEN — cannot call Zeabur's API at all. Failing.")
+        sys.exit(1)
+    return token
+
+
+def trigger_redeploy(service: dict, token: str) -> None:
+    payload = json.dumps({
+        "query": REDEPLOY_MUTATION,
+        "variables": {"serviceID": service["service_id"], "environmentID": service["environment_id"]},
+    }).encode("utf-8")
+    req = urllib.request.Request(
+        ZEABUR_GRAPHQL_URL,
+        method="POST",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        },
+    )
     with urllib.request.urlopen(req, timeout=30) as resp:
-        print(f"  webhook responded {resp.status}")
+        body = json.loads(resp.read())
+    if body.get("errors"):
+        raise RuntimeError(f"Zeabur API returned errors: {body['errors']}")
+    if body.get("data", {}).get("redeployService") is not True:
+        raise RuntimeError(f"Zeabur API did not confirm redeploy: {body}")
+    print(f"  redeploy triggered for {service['name']}")
 
 
 def check_health(url: str) -> bool:
@@ -42,21 +73,15 @@ def main():
     with open(FLEET_FILE) as f:
         fleet = json.load(f)
 
+    token = api_token()
     canary = fleet["canary"]
 
-    def secret_for(service: dict) -> str:
-        name = service["webhook_secret"]
-        value = os.environ.get(name)
-        if not value:
-            print(f"  MISSING secret {name} — skipping {service['name']}")
-        return value
-
     print(f"== Redeploying canary: {canary['name']} ==")
-    canary_url = secret_for(canary)
-    if not canary_url:
-        print("Canary has no webhook configured — cannot safely propagate. Failing.")
+    try:
+        trigger_redeploy(canary, token)
+    except Exception as e:
+        print(f"  FAILED to trigger canary redeploy: {e}")
         sys.exit(1)
-    trigger_webhook(canary_url)
 
     attempts = canary.get("health_poll_attempts", 10)
     interval = canary.get("health_poll_interval_seconds", 15)
@@ -80,12 +105,8 @@ def main():
     failures = []
     for service in fleet["fleet"]:
         print(f"== Redeploying {service['name']} ==")
-        url = secret_for(service)
-        if not url:
-            failures.append(service["name"])
-            continue
         try:
-            trigger_webhook(url)
+            trigger_redeploy(service, token)
         except Exception as e:
             print(f"  FAILED to trigger {service['name']}: {e}")
             failures.append(service["name"])

@@ -52,13 +52,13 @@ Every push to this repo's `main` branch triggers `.github/workflows/propagate.ym
 
 This is why bots should track `@main` instead of pinning: they're not expected to manually bump a version. bot-core pushes, the canary catches anything broken before it reaches a real bot, and everything else picks it up within minutes of that push.
 
-**Adding a new bot/webapp to the fleet:**
-1. Add an entry to `deploy/fleet.json` (`name`, `repo`, `webhook_secret`, `health_url`).
-2. In Zeabur, create a deploy-trigger webhook for that service.
-3. Add the webhook URL as a GitHub Actions secret in **this** repo, named exactly what you put in `webhook_secret`.
-4. Add one line under `env:` in `.github/workflows/propagate.yml` mapping that secret name through to the job.
+Redeploys go through **Zeabur's GraphQL API** (`redeployService` mutation), not a webhook — Zeabur has no deploy-trigger webhook feature (confirmed against their Apollo Explorer schema; it's a requested feature, not shipped). One account-wide `ZEABUR_API_TOKEN` secret authenticates every service's redeploy call.
 
-Step 4 is a deliberate bit of manual work: the alternative (`${{ toJSON(secrets) }}`, dumping every secret into one env var so no YAML edit is ever needed) trips GitHub's automated "may be malicious" scan on every workflow-file change and hands the script every secret in the repo instead of just the ones it needs.
+**Adding a new bot/webapp to the fleet:**
+1. Get its Zeabur `serviceID` and `environmentID` (from the Zeabur GraphQL API/Apollo Explorer — these are identifiers, not secrets, safe to commit).
+2. Add an entry to `deploy/fleet.json` (`name`, `repo`, `service_id`, `environment_id`, `health_url`).
+
+That's it — no new secret, no workflow YAML edit. One `ZEABUR_API_TOKEN` covers the whole fleet.
 
 ## Quick start
 
