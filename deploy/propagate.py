@@ -2,26 +2,23 @@
 Fan out a redeploy to every service in fleet.json — canary first, gating
 the rest. Run by .github/workflows/propagate.yml on every push to main.
 
-Looks up each service's Zeabur deploy-webhook URL from the GitHub Actions
-secrets context (passed in via the SECRETS_CONTEXT env var as JSON, keyed
-by the `webhook_secret` name in fleet.json) rather than requiring the
-workflow YAML to be edited every time a new service joins the fleet —
-add an entry to fleet.json and a matching repo secret, nothing else.
+Looks up each service's Zeabur deploy-webhook URL from an env var named
+after the `webhook_secret` field in fleet.json. Those env vars are set
+explicitly in propagate.yml from `secrets.<NAME>` — deliberately not
+`${{ toJSON(secrets) }}`, which dumps the entire secrets store into one
+var and trips GitHub's automated "may be malicious" workflow scan on
+every edit to this file. Adding a new fleet member means a fleet.json
+entry, a repo secret, AND a matching env line in propagate.yml.
 """
 
-import json
 import os
 import sys
 import time
 import urllib.request
 import urllib.error
+import json
 
 FLEET_FILE = os.path.join(os.path.dirname(__file__), "fleet.json")
-
-
-def load_secrets() -> dict:
-    raw = os.environ.get("SECRETS_CONTEXT", "{}")
-    return json.loads(raw)
 
 
 def trigger_webhook(url: str) -> None:
@@ -45,12 +42,11 @@ def main():
     with open(FLEET_FILE) as f:
         fleet = json.load(f)
 
-    secrets = load_secrets()
     canary = fleet["canary"]
 
     def secret_for(service: dict) -> str:
         name = service["webhook_secret"]
-        value = secrets.get(name)
+        value = os.environ.get(name)
         if not value:
             print(f"  MISSING secret {name} — skipping {service['name']}")
         return value

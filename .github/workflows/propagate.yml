@@ -13,8 +13,13 @@ name: Propagate to fleet
 #      "webhook_secret" field says for that service
 #      (e.g. ZEABUR_WEBHOOK_BOT_CORE_CANARY, ZEABUR_WEBHOOK_CLAWSUNE).
 #   3. To add a new service to the fleet: add an entry to
-#      deploy/fleet.json and a matching secret. No workflow YAML edits
-#      needed — propagate.py reads secrets dynamically by name.
+#      deploy/fleet.json, a matching secret, AND a line under `env:`
+#      below. Deliberately NOT using `${{ toJSON(secrets) }}` here even
+#      though it would avoid the YAML edit — dumping the whole secrets
+#      store into one env var (a) trips GitHub's automated
+#      "may be malicious" scan on every workflow-file change, requiring
+#      manual re-approval, and (b) hands the script every secret in the
+#      repo instead of just the two it needs. Explicit > convenient.
 #
 # Until secrets are configured, this workflow will run and fail loudly
 # at the "missing secret" check rather than silently doing nothing.
@@ -36,5 +41,6 @@ jobs:
 
       - name: Redeploy canary, then fan out to fleet
         env:
-          SECRETS_CONTEXT: ${{ toJSON(secrets) }}
+          ZEABUR_WEBHOOK_BOT_CORE_CANARY: ${{ secrets.ZEABUR_WEBHOOK_BOT_CORE_CANARY }}
+          ZEABUR_WEBHOOK_CLAWSUNE: ${{ secrets.ZEABUR_WEBHOOK_CLAWSUNE }}
         run: python deploy/propagate.py

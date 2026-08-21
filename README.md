@@ -56,8 +56,9 @@ This is why bots should track `@main` instead of pinning: they're not expected t
 1. Add an entry to `deploy/fleet.json` (`name`, `repo`, `webhook_secret`, `health_url`).
 2. In Zeabur, create a deploy-trigger webhook for that service.
 3. Add the webhook URL as a GitHub Actions secret in **this** repo, named exactly what you put in `webhook_secret`.
+4. Add one line under `env:` in `.github/workflows/propagate.yml` mapping that secret name through to the job.
 
-No workflow YAML edits needed — `deploy/propagate.py` reads secrets dynamically by name from the fleet registry.
+Step 4 is a deliberate bit of manual work: the alternative (`${{ toJSON(secrets) }}`, dumping every secret into one env var so no YAML edit is ever needed) trips GitHub's automated "may be malicious" scan on every workflow-file change and hands the script every secret in the repo instead of just the ones it needs.
 
 ## Quick start
 
