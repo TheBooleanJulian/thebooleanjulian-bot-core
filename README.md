@@ -5,7 +5,7 @@
 **Opt-in shared building blocks for TheBooleanJulian's Telegram bots — extracted from what the bots actually do, not designed top-down.**
 
 ![Python](https://img.shields.io/badge/-Python-3776AB?logo=python&logoColor=white)
-![License](https://img.shields.io/badge/license-MIT-00D4C8.svg)
+![License](https://img.shields.io/badge/license-AGPLv3%20%2B%20Commercial-00D4C8.svg)
 
 </div>
 
@@ -29,6 +29,10 @@ v2 is a rewrite based on a survey of the actual bot codebases in this fleet. It'
 | `branding` | Palette constants, `fmt_success`/`fmt_error`/`fmt_warn`/`fmt_status_message` | Cosmetic, zero side effects, safe to adopt piecemeal |
 | `utils` | SGT helpers, `mark_start()`/`fmt_uptime()`, `truncate()`, `plural()` | Only relevant if a bot schedules things or shows uptime — several bots have no timezone need at all |
 | `ui` | `InlineKeyboardMarkup` builders (`confirm_keyboard`, `paginated_keyboard`, ...) | Generic PTB helpers, opt-in |
+
+## Screenshots
+
+_Screenshots coming soon._
 
 ## Install
 
@@ -125,7 +129,10 @@ git push origin v2.0.0
 
 ## License
 
-MIT
+This project is dual licensed.
+
+- Community Edition — [GNU Affero General Public License v3 (AGPLv3)](LICENSE). Free to use, modify, and self-host. If you distribute a modified version or run it as a network service, you must make the corresponding source available.
+- Commercial License — for organisations that want to embed, modify, or distribute this software without AGPLv3's obligations. See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
 
 ---
 
