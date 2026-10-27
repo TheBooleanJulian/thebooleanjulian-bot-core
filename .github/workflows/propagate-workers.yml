@@ -1,0 +1,43 @@
+name: Propagate to Workers fleet
+
+# The Cloudflare Workers successor to propagate.yml (Zeabur). On every push to main:
+# test the JS edition, deploy bot-core-canary built against this exact commit, wait for its
+# /healthz to report the commit and pass, then deploy every bot in deploy/workers-fleet.json.
+# A failing canary blocks the fan-out entirely.
+#
+# One-time setup (Settings > Secrets and variables > Actions):
+#   CLOUDFLARE_API_TOKEN  dash.cloudflare.com/profile/api-tokens > Create Token > "Edit Cloudflare Workers"
+#                         template, scoped to the Juliancheung@accurova.com account.
+#   FLEET_GITHUB_TOKEN    fine-grained PAT with Contents: read on the private bot repos
+#                         (bot-core-canary, clawsune, ...). Public repos clone without it.
+# Until CLOUDFLARE_API_TOKEN exists this fails loudly instead of silently doing nothing.
+
+on:
+  push:
+    branches: [main]
+    paths: ["js/**", "package.json", "deploy/workers-fleet.json", "deploy/propagate_workers.py"]
+  workflow_dispatch: {}
+
+concurrency:
+  group: propagate-workers
+  cancel-in-progress: false
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test the JS edition
+        run: node --test
+      - name: Deploy canary, then fan out
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          FLEET_GITHUB_TOKEN: ${{ secrets.FLEET_GITHUB_TOKEN }}
+          BOT_CORE_SHA: ${{ github.sha }}
+        run: python deploy/propagate_workers.py
