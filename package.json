@@ -1,11 +1,13 @@
 {
   "name": "thebooleanjulian-bot-core",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Shared building blocks for TheBooleanJulian's Telegram bots. JS edition for Cloudflare Workers (js/); the Python edition lives in thebooleanjulian_bot_core/.",
   "type": "module",
   "private": true,
   "license": "AGPL-3.0-only",
-  "files": ["js"],
+  "files": [
+    "js"
+  ],
   "exports": {
     ".": "./js/index.js",
     "./log": "./js/log.js",
@@ -17,10 +19,14 @@
     "./branding": "./js/branding.js",
     "./ui": "./js/ui.js",
     "./time": "./js/time.js",
-    "./health": "./js/health.js"
+    "./health": "./js/health.js",
+    "./db": "./js/db.js"
   },
   "scripts": {
     "test": "node --test",
     "sync-brand": "node scripts/sync-brand.mjs"
+  },
+  "dependencies": {
+    "postgres": "^3.4.5"
   }
 }

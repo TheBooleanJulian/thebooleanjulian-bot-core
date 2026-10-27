@@ -90,6 +90,7 @@ Dependency-free ES modules (fetch and Web APIs only), so they also run on Telegr
 | `ui` | `ui` | `confirmKeyboard`, `backKeyboard`, `urlButtonKeyboard`, `paginatedKeyboard`, `sendLoading/editToResult` |
 | `time` | `utils` | SGT formatting, `fmtSince()`, `plural`, `truncate` |
 | `health` | `health` | `healthz()` (reports the bot-core sha), `statusPage()` on the Julian Unified UI tokens, `serveBrand()` for `/brand/tokens.css` |
+| `db` | — | `withDb(env, ctx, sql => …)`, `dbCheck()`: Postgres on the shared Supabase project through the bot's Hyperdrive binding. Import from `thebooleanjulian-bot-core/db` only; it's the one module with a dependency (`postgres`) and needs `nodejs_compat`. Schemas and roles live in [thebooleanjulian-db](https://github.com/TheBooleanJulian/thebooleanjulian-db). |
 
 Brand tokens come from tbj-brand: `npm run sync-brand` regenerates `js/brand-tokens.js` from tbj-brand's `dist/tokens.css`; commit and push, and the fan-out restyles every bot's status page.
 
@@ -177,6 +178,7 @@ git push origin v2.0.0
 
 ## Changelog
 
+- **v2.3.0** — `db` module (`thebooleanjulian-bot-core/db`): Postgres via Hyperdrive onto the shared Supabase project (one schema and role per app), replacing per-bot Redis. Adds the `postgres` driver as the package's only dependency, used only by that entry point.
 - **v2.2.0** — JS edition for Cloudflare Workers (`js/`, installable from GitHub as `thebooleanjulian-bot-core`): log, telegram, router, admin, errors, ratelimit, branding, ui, time, health. Status page and `/brand/tokens.css` use the Julian Unified UI tokens from tbj-brand. New `propagate-workers.yml` + `deploy/workers-fleet.json`: canary-first fan-out to Workers, gated on each bot's `/healthz` reporting the new sha. Python edition unchanged.
 - **v2.1.0** — Added fleet-wide auto-propagation: `.github/workflows/propagate.yml` redeploys `bot-core-canary` on every push to `main`, gates on its `/healthz`, and only then fans out redeploys to `deploy/fleet.json`. Reverted the "pin a tag" install guidance — bots should track `@main` now that a canary catches breakage before it reaches them.
 - **v2.0.0** — Rewrite from a bottom-up survey of the actual bot fleet. Replaced the Flask-only `StatusServer` with two interchangeable backends (stdlib default + optional Flask). Split `middleware.py` into `logging_setup`, `admin`, `ratelimit`, `error_handling` — each independent and opt-in, mirroring the real shapes found (inline checks, filter classes, per-command rate limits, conflict-fail-fast vs. friendly-error-card). Dropped the unused `pytz` dependency. Removed the fabricated "Bots Using This Library" table (none of those bots existed or imported this package) and the stale Miku Monday integration example (that bot turned out to be Node.js).
