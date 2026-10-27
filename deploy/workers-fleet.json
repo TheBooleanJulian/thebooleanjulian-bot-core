@@ -19,6 +19,12 @@
       "repo": "TheBooleanJulian/miku-singlish-word-of-the-day",
       "branch": "master",
       "health_url": "https://miku-singlish.thebooleanjulian.dev/healthz"
+    },
+    {
+      "name": "food-analyst",
+      "repo": "TheBooleanJulian/food-analyst-bot",
+      "branch": "master",
+      "health_url": "https://food-analyst.thebooleanjulian.dev/healthz"
     }
   ]
 }
