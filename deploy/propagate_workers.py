@@ -25,7 +25,10 @@ def run(cmd, cwd, env):
 def wait_healthy(url, sha, attempts=12, interval=10):
     for i in range(attempts):
         try:
-            with urllib.request.urlopen(url + ("&" if "?" in url else "?") + f"t={time.time()}", timeout=15) as r:
+            # Cloudflare answers 403 to Python's default "Python-urllib" user agent, so name ourselves.
+            req = urllib.request.Request(url + ("&" if "?" in url else "?") + f"t={time.time()}",
+                                         headers={"User-Agent": "tbj-propagate/1.0 (+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core)"})
+            with urllib.request.urlopen(req, timeout=15) as r:
                 body = json.load(r)
             got = body.get("bot_core", {}).get("sha")
             if got == sha and body.get("status") == "pass":
