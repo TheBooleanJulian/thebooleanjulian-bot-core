@@ -14,7 +14,7 @@
     {
       "name": "miku-monday",
       "repo": "TheBooleanJulian/miku-monday",
-      "branch": "main",
+      "branch": "master",
       "health_url": "https://miku-monday.thebooleanjulian.dev/healthz"
     }
   ]
