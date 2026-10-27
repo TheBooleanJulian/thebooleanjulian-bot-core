@@ -7,7 +7,7 @@ import { parseCommand, createRouter } from '../js/router.js';
 import { isAdmin, adminOnly } from '../js/admin.js';
 import { verifyWebhook } from '../js/telegram.js';
 
-const TOKEN = '8734475451:AAFakeTokenForTestsOnly_abcdefghijk';
+const TOKEN = '123456789:AAFakeTokenForTestsOnly_abcdefghijk';
 
 test('redact removes bot tokens from text and URLs', () => {
   assert.equal(redact(`GET https://api.telegram.org/bot${TOKEN}/getMe`), 'GET https://api.telegram.org/bot<bot-token>/getMe');
