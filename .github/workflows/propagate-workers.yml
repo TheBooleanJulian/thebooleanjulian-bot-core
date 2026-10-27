@@ -15,7 +15,7 @@ name: Propagate to Workers fleet
 on:
   push:
     branches: [main]
-    paths: ["js/**", "package.json", "deploy/workers-fleet.json", "deploy/propagate_workers.py"]
+    paths: ["js/**", "package.json", "package-lock.json", "deploy/workers-fleet.json", "deploy/propagate_workers.py"]
   workflow_dispatch: {}
 
 concurrency:
@@ -34,7 +34,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Test the JS edition
-        run: node --test
+        run: |
+          npm ci --no-audit --no-fund
+          node --test
       - name: Deploy canary, then fan out
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
