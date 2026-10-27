@@ -64,7 +64,60 @@ Redeploys go through **Zeabur's GraphQL API** (`redeployService` mutation), not 
 
 That's it — no new secret, no workflow YAML edit. One `ZEABUR_API_TOKEN` covers the whole fleet.
 
-## Quick start
+### Workers fleet (JS edition)
+
+Bots moving off Zeabur run on Cloudflare Workers and use the JS edition in [`js/`](js/). Every push to `main` that touches it triggers `.github/workflows/propagate-workers.yml`:
+
+1. Runs the JS tests, then deploys **bot-core-canary** built against that exact commit (`--var BOT_CORE_SHA:<sha>`).
+2. Polls the canary's `/healthz` until it reports that sha with `"status": "pass"`. Anything else blocks the fan-out.
+3. Deploys every bot in [`deploy/workers-fleet.json`](deploy/workers-fleet.json) the same way, each gated on its own `/healthz`.
+
+Needs two Actions secrets: `CLOUDFLARE_API_TOKEN` ("Edit Cloudflare Workers" template) and `FLEET_GITHUB_TOKEN` (read access to private bot repos). To add a bot: depend on `thebooleanjulian-bot-core` (below), serve `healthz()` at `/healthz`, add an entry to `workers-fleet.json`.
+
+## JS edition (Cloudflare Workers)
+
+Dependency-free ES modules (fetch and Web APIs only), so they also run on Telegram serverless. Same opt-in idea as the Python modules:
+
+| Module | Python counterpart | Gives you |
+|---|---|---|
+| `log` | `logging_setup` | JSON log lines with bot tokens redacted (including `api.telegram.org/bot<token>` URLs) |
+| `telegram` | python-telegram-bot | `api(env, method, params)`, `reply()`, `verifyWebhook()` (secret_token header, constant-time) |
+| `router` | handlers | `createRouter({ commands, callbacks, onMessage })`, `parseCommand()` |
+| `admin` | `admin` | `isAdmin()`, `adminOnly()` from `OWNER_TELEGRAM_ID` |
+| `errors` | `error_handling` | `errorBoundary()`: friendly reply, redacted error to the owner, webhook still answers 200 |
+| `ratelimit` | `ratelimit` | `rateLimit()` per user/command (per-isolate, best effort) |
+| `branding` | `branding` | `fmtSuccess/fmtError/fmtInfo/fmtWarn/fmtSection/fmtStatusMessage`, brand constants |
+| `ui` | `ui` | `confirmKeyboard`, `backKeyboard`, `urlButtonKeyboard`, `paginatedKeyboard`, `sendLoading/editToResult` |
+| `time` | `utils` | SGT formatting, `fmtSince()`, `plural`, `truncate` |
+| `health` | `health` | `healthz()` (reports the bot-core sha), `statusPage()` on the Julian Unified UI tokens, `serveBrand()` for `/brand/tokens.css` |
+
+Brand tokens come from tbj-brand: `npm run sync-brand` regenerates `js/brand-tokens.js` from tbj-brand's `dist/tokens.css`; commit and push, and the fan-out restyles every bot's status page.
+
+```jsonc
+// package.json of a bot — track main, never pin
+"dependencies": { "thebooleanjulian-bot-core": "github:TheBooleanJulian/thebooleanjulian-bot-core#main" }
+```
+
+```js
+import { createRouter, verifyWebhook, errorBoundary, healthz, statusPage, fmtSuccess, reply } from 'thebooleanjulian-bot-core';
+
+const route = createRouter({ commands: { start: errorBoundary((ctx) => reply(ctx.env, ctx.message, fmtSuccess('Hi'))) } });
+
+export default {
+  async fetch(request, env, ctx) {
+    const { pathname } = new URL(request.url);
+    if (pathname === '/healthz') return healthz(env, { checks: { db: 'ok' } });
+    if (pathname === '/') return statusPage(env, { name: 'My Bot', username: '@my_bot', commands: [['/start', 'Wake up']] });
+    if (pathname === '/webhook' && verifyWebhook(request, env)) {
+      ctx.waitUntil(route(await request.json(), env));
+      return new Response('ok');
+    }
+    return new Response('not found', { status: 404 });
+  }
+};
+```
+
+## Quick start (Python edition)
 
 Pick whichever pieces fit. Two full worked examples matching real bot shapes are in [`examples/`](examples/):
 
@@ -101,8 +154,9 @@ async def status_handler(update, context): ...
 
 | Service | Tracks | Notes |
 |---|---|---|
-| `bot-core-canary` | `@main` | Canary — gates fleet propagation, no real users |
-| `clawsune` | `@main` | First real integration: `setup_logging`, `admin_only`, `error_handling` |
+| `bot-core-canary` | `@main` | Canary — gates fleet propagation, no real users. JS edition on Workers (`workers-fleet.json`) |
+| `clawsune` | `@main` | First real integration: `setup_logging`, `admin_only`, `error_handling` (Python, Zeabur) |
+| `miku-monday` | `@main` | JS edition on Workers: telegram, router, log, health (`workers-fleet.json`) |
 
 v1 was declared as a dependency in 9 repos' `requirements.txt` but never actually imported by any of them — don't add a bot to this table speculatively; add it when it actually imports something and is registered in `deploy/fleet.json`.
 
@@ -123,6 +177,7 @@ git push origin v2.0.0
 
 ## Changelog
 
+- **v2.2.0** — JS edition for Cloudflare Workers (`js/`, installable from GitHub as `thebooleanjulian-bot-core`): log, telegram, router, admin, errors, ratelimit, branding, ui, time, health. Status page and `/brand/tokens.css` use the Julian Unified UI tokens from tbj-brand. New `propagate-workers.yml` + `deploy/workers-fleet.json`: canary-first fan-out to Workers, gated on each bot's `/healthz` reporting the new sha. Python edition unchanged.
 - **v2.1.0** — Added fleet-wide auto-propagation: `.github/workflows/propagate.yml` redeploys `bot-core-canary` on every push to `main`, gates on its `/healthz`, and only then fans out redeploys to `deploy/fleet.json`. Reverted the "pin a tag" install guidance — bots should track `@main` now that a canary catches breakage before it reaches them.
 - **v2.0.0** — Rewrite from a bottom-up survey of the actual bot fleet. Replaced the Flask-only `StatusServer` with two interchangeable backends (stdlib default + optional Flask). Split `middleware.py` into `logging_setup`, `admin`, `ratelimit`, `error_handling` — each independent and opt-in, mirroring the real shapes found (inline checks, filter classes, per-command rate limits, conflict-fail-fast vs. friendly-error-card). Dropped the unused `pytz` dependency. Removed the fabricated "Bots Using This Library" table (none of those bots existed or imported this package) and the stale Miku Monday integration example (that bot turned out to be Node.js).
 - **v1.0.0** — Initial release: branding, middleware (rate_limit, admin_only, setup_logging, global error handler), UI helpers, utils, Flask-based health server. Written speculatively before any bot integrated it.
