@@ -1,21 +1,24 @@
 {
   "_comment": "Bots on Cloudflare Workers that track bot-core main. A push to main deploys the canary first (built against that exact commit), waits until its /healthz reports the same sha and passes, then deploys every fleet entry. Each repo must have wrangler.jsonc on the listed branch and depend on thebooleanjulian-bot-core. See .github/workflows/propagate-workers.yml for the secrets it needs.",
-
   "account_id": "c580c4403524273d1bece674117472dd",
-
   "canary": {
     "name": "bot-core-canary",
     "repo": "TheBooleanJulian/bot-core-canary",
     "branch": "main",
     "health_url": "https://bot-core-canary.juliancheung.workers.dev/healthz"
   },
-
   "fleet": [
     {
       "name": "miku-monday",
       "repo": "TheBooleanJulian/miku-monday",
       "branch": "master",
       "health_url": "https://miku-monday.thebooleanjulian.dev/healthz"
+    },
+    {
+      "name": "miku-singlish",
+      "repo": "TheBooleanJulian/miku-singlish-word-of-the-day",
+      "branch": "master",
+      "health_url": "https://miku-singlish.thebooleanjulian.dev/healthz"
     }
   ]
 }
