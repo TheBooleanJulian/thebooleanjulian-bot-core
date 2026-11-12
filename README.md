@@ -48,25 +48,12 @@ git+https://github.com/TheBooleanJulian/thebooleanjulian-bot-core.git@main#egg=t
 
 ## Fleet propagation
 
-Every push to this repo's `main` branch triggers `.github/workflows/propagate.yml`:
+Bots track `@main` instead of pinning: they're not expected to manually bump a version. bot-core pushes, a canary
+(**[bot-core-canary](https://github.com/TheBooleanJulian/bot-core-canary)**, no real users) catches anything broken
+before it reaches a real bot, and everything else picks it up within minutes of that push.
 
-1. Redeploys **[bot-core-canary](https://github.com/TheBooleanJulian/bot-core-canary)** — a throwaway service with no real users whose only job is to import bot-core and stay healthy.
-2. Polls its `/healthz`. If it doesn't come up healthy, the pipeline **stops here** — nothing else is touched, and the workflow fails loudly in GitHub Actions.
-3. Only if the canary is healthy does it fan out redeploys to every service listed in `deploy/fleet.json`.
-
-This is why bots should track `@main` instead of pinning: they're not expected to manually bump a version. bot-core pushes, the canary catches anything broken before it reaches a real bot, and everything else picks it up within minutes of that push.
-
-Redeploys go through **Zeabur's GraphQL API** (`redeployService` mutation), not a webhook — Zeabur has no deploy-trigger webhook feature (confirmed against their Apollo Explorer schema; it's a requested feature, not shipped). One account-wide `ZEABUR_API_TOKEN` secret authenticates every service's redeploy call.
-
-**Adding a new bot/webapp to the fleet:**
-1. Get its Zeabur `serviceID` and `environmentID` (from the Zeabur GraphQL API/Apollo Explorer — these are identifiers, not secrets, safe to commit).
-2. Add an entry to `deploy/fleet.json` (`name`, `repo`, `service_id`, `environment_id`, `health_url`).
-
-That's it — no new secret, no workflow YAML edit. One `ZEABUR_API_TOKEN` covers the whole fleet.
-
-### Workers fleet (JS edition)
-
-Bots moving off Zeabur run on Cloudflare Workers and use the JS edition in [`js/`](js/). Every push to `main` that touches it triggers `.github/workflows/propagate-workers.yml`:
+Bots run on Cloudflare Workers and use the JS edition in [`js/`](js/). Every push to `main` that touches it triggers
+`.github/workflows/propagate-workers.yml`:
 
 1. Runs the JS tests, then deploys **bot-core-canary** built against that exact commit (`--var BOT_CORE_SHA:<sha>`).
 2. Polls the canary's `/healthz` until it reports that sha with `"status": "pass"`. Anything else blocks the fan-out.
@@ -159,7 +146,7 @@ async def status_handler(update, context): ...
 | `clawsune` | `@main` | First real integration: `setup_logging`, `admin_only`, `error_handling` (Python, Zeabur) |
 | `miku-monday` | `@main` | JS edition on Workers: telegram, router, log, health (`workers-fleet.json`) |
 
-v1 was declared as a dependency in 9 repos' `requirements.txt` but never actually imported by any of them — don't add a bot to this table speculatively; add it when it actually imports something and is registered in `deploy/fleet.json`.
+v1 was declared as a dependency in 9 repos' `requirements.txt` but never actually imported by any of them — don't add a bot to this table speculatively; add it when it actually imports something and is registered in `deploy/workers-fleet.json`.
 
 ## Fleet survey (why the API looks like this)
 
@@ -178,6 +165,7 @@ git push origin v2.0.0
 
 ## Changelog
 
+- **Unreleased** — Removed the Zeabur fan-out (`propagate.yml`, `deploy/propagate.py`, `deploy/fleet.json`). It was never configured (no `ZEABUR_API_TOKEN`, placeholder IDs) and failed on every merge; `propagate-workers.yml` is the only fan-out now.
 - **v2.3.0** — `db` module (`thebooleanjulian-bot-core/db`): Postgres via Hyperdrive onto the shared Supabase project (one schema and role per app), replacing per-bot Redis. Adds the `postgres` driver as the package's only dependency, used only by that entry point.
 - **v2.2.0** — JS edition for Cloudflare Workers (`js/`, installable from GitHub as `thebooleanjulian-bot-core`): log, telegram, router, admin, errors, ratelimit, branding, ui, time, health. Status page and `/brand/tokens.css` use the Julian Unified UI tokens from tbj-brand. New `propagate-workers.yml` + `deploy/workers-fleet.json`: canary-first fan-out to Workers, gated on each bot's `/healthz` reporting the new sha. Python edition unchanged.
 - **v2.1.0** — Added fleet-wide auto-propagation: `.github/workflows/propagate.yml` redeploys `bot-core-canary` on every push to `main`, gates on its `/healthz`, and only then fans out redeploys to `deploy/fleet.json`. Reverted the "pin a tag" install guidance — bots should track `@main` now that a canary catches breakage before it reaches them.
