@@ -47,7 +47,7 @@ core — one push, everyone updates." Implemented as:
 
 - `bot-core-canary` (new repo, `TheBooleanJulian/bot-core-canary`) —
   throwaway service, no real users, imports bot-core and self-checks.
-- `.github/workflows/propagate.yml` — on push to `main`, redeploys the
+- (Retired 2026-11-12: Zeabur fan-out removed; see propagate-workers.yml.) `.github/workflows/propagate.yml` — on push to `main`, redeploys the
   canary via its Zeabur webhook, polls `/healthz`, and only fans out to
   `deploy/fleet.json`'s services if the canary comes up healthy. Logic
   lives in `deploy/propagate.py`, tested against a local mock server
