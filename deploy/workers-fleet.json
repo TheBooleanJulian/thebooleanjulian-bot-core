@@ -25,6 +25,12 @@
       "repo": "TheBooleanJulian/food-analyst-bot",
       "branch": "master",
       "health_url": "https://food-analyst.thebooleanjulian.dev/healthz"
+    },
+    {
+      "name": "card-connect",
+      "repo": "TheBooleanJulian/card-connect",
+      "branch": "master",
+      "health_url": "https://card-connect.thebooleanjulian.dev/healthz"
     }
   ]
 }
